@@ -4,7 +4,6 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.AdapterView;
-import android.widget.ImageView;
 import android.widget.ListView;
 import android.widget.Toast;
 
@@ -38,9 +37,6 @@ public class FavoritesActivity extends AppCompatActivity {
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.favorite_news);
-
-        ImageView btnBack = findViewById(R.id.btn_back);
-        btnBack.setOnClickListener(v -> onBackPressed());
 
         // Kiểm tra mạng
         if (!NetworkUtil.isConnected(this)) {
@@ -123,7 +119,6 @@ public class FavoritesActivity extends AppCompatActivity {
             return;
         }
 
-        // List tạm để đổ dữ liệu vào rồi set cho adapter
         List<NewsItem> tempList = new ArrayList<>();
         adapter.updateData(tempList); // clear adapter trước
 
@@ -133,34 +128,51 @@ public class FavoritesActivity extends AppCompatActivity {
                 .get()
                 .addOnSuccessListener(favoriteDocs -> {
                     if (favoriteDocs.isEmpty()) {
-                        Toast.makeText(this,
-                                "Bạn chưa yêu thích bài báo nào",
-                                Toast.LENGTH_SHORT).show();
+                        Toast.makeText(this, "Bạn chưa yêu thích bài báo nào", Toast.LENGTH_SHORT).show();
                         return;
                     }
 
+                    final int total = favoriteDocs.size();
+                    final int[] processed = {0};
+
                     for (DocumentSnapshot favDoc : favoriteDocs.getDocuments()) {
-                        String articleId = favDoc.getId(); // doc id chính là postId
+                        String articleId = favDoc.getId();
 
                         db.collection("posts")
                                 .document(articleId)
                                 .get()
                                 .addOnSuccessListener(newsDoc -> {
+                                    processed[0]++;
+
                                     if (newsDoc.exists()) {
                                         NewsItem item = newsDoc.toObject(NewsItem.class);
                                         if (item != null) {
                                             item.setId(newsDoc.getId());
                                             tempList.add(item);
-                                            // mỗi lần có dữ liệu mới thì cập nhật adapter
-                                            adapter.updateData(tempList);
                                         }
+                                    } else {
+                                        //  Bài báo không tồn tại → xoá khỏi favorites
+                                        db.collection("users")
+                                                .document(uid)
+                                                .collection("favorites")
+                                                .document(articleId)
+                                                .delete();
+                                    }
+
+                                    // Cập nhật adapter khi đã xử lý hết
+                                    if (processed[0] == total) {
+                                        adapter.updateData(tempList);
                                     }
                                 })
-                                .addOnFailureListener(e ->
-                                        Toast.makeText(this,
-                                                "Lỗi khi tải bài yêu thích: " + e.getMessage(),
-                                                Toast.LENGTH_SHORT).show()
-                                );
+                                .addOnFailureListener(e -> {
+                                    processed[0]++;
+                                    if (processed[0] == total) {
+                                        adapter.updateData(tempList);
+                                    }
+                                    Toast.makeText(this,
+                                            "Lỗi khi tải bài yêu thích: " + e.getMessage(),
+                                            Toast.LENGTH_SHORT).show();
+                                });
                     }
                 })
                 .addOnFailureListener(e ->
@@ -169,4 +181,5 @@ public class FavoritesActivity extends AppCompatActivity {
                                 Toast.LENGTH_SHORT).show()
                 );
     }
+
 }
