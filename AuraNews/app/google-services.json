@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "736165869916",
+    "project_id": "aura1812-bd7b6",
+    "storage_bucket": "aura1812-bd7b6.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:736165869916:android:e03e0343654db9bc8ee999",
+        "android_client_info": {
+          "package_name": "com.example.auranews"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBubY3x8uy4OYe0pKW1ZnOwyUEp31b2dgE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

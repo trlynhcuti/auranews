@@ -1,0 +1,1 @@
+if your Android Studio does not auto repair your SDK location, please open local.properties and change SDK location
