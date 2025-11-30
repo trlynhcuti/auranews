@@ -5,7 +5,6 @@ import android.os.Bundle;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ImageButton;
-import android.widget.ImageView;
 import android.widget.ListView;
 import android.widget.Toast;
 
@@ -29,14 +28,12 @@ public class HistoryActivity extends AppCompatActivity {
     NewsAdapter adapter;
 
     FirebaseFirestore db = FirebaseFirestore.getInstance();
+    ImageButton btn_back;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_history);
-
-        ImageView btnBack = findViewById(R.id.btn_back);
-        btnBack.setOnClickListener(v -> onBackPressed());
 
         // Kiểm tra mạng
         if (!NetworkUtil.isConnected(this)) {
@@ -45,6 +42,13 @@ public class HistoryActivity extends AppCompatActivity {
             finish();
             return;
         }
+
+        btn_back = findViewById(R.id.btn_back);
+        btn_back.setOnClickListener(view -> {
+            Intent intent = new Intent(HistoryActivity.this, MainActivity.class);
+            startActivity(intent);
+            finish();
+        });
 
         lvNews = findViewById(R.id.lv_history);
 
@@ -80,44 +84,60 @@ public class HistoryActivity extends AppCompatActivity {
             return;
         }
 
-        // List tạm để đổ dữ liệu rồi set cho adapter
         List<NewsItem> tempList = new ArrayList<>();
-        adapter.updateData(tempList); // clear adapter trước
+        adapter.updateData(tempList); // clear trước
 
         db.collection("users")
                 .document(uid)
                 .collection("read_articles")
                 .get()
                 .addOnSuccessListener(historyDocs -> {
+
                     if (historyDocs.isEmpty()) {
-                        Toast.makeText(this,
-                                "Bạn chưa đọc bài báo nào",
-                                Toast.LENGTH_SHORT).show();
+                        Toast.makeText(this, "Bạn chưa đọc bài báo nào", Toast.LENGTH_SHORT).show();
                         return;
                     }
 
+                    final int total = historyDocs.size();
+                    final int[] processed = {0};
+
                     for (DocumentSnapshot doc : historyDocs.getDocuments()) {
+
                         String articleId = doc.getId();
 
                         db.collection("posts")
                                 .document(articleId)
                                 .get()
                                 .addOnSuccessListener(newsDoc -> {
+                                    processed[0]++;
+
                                     if (newsDoc.exists()) {
+                                        // 🔥 Bài báo tồn tại → thêm vào danh sách
                                         NewsItem item = newsDoc.toObject(NewsItem.class);
                                         if (item != null) {
                                             item.setId(newsDoc.getId());
                                             tempList.add(item);
-                                            // mỗi lần có thêm 1 bài thì cập nhật adapter
-                                            adapter.updateData(tempList);
                                         }
+                                    } else {
+                                        // Bài báo không tồn tại → xoá ID trong read_articles
+                                        db.collection("users")
+                                                .document(uid)
+                                                .collection("read_articles")
+                                                .document(articleId)
+                                                .delete();
+                                    }
+
+                                    // Khi đã load xong toàn bộ
+                                    if (processed[0] == total) {
+                                        adapter.updateData(tempList);
                                     }
                                 })
-                                .addOnFailureListener(e ->
-                                        Toast.makeText(this,
-                                                "Lỗi khi tải bài đã đọc: " + e.getMessage(),
-                                                Toast.LENGTH_SHORT).show()
-                                );
+                                .addOnFailureListener(e -> {
+                                    processed[0]++;
+                                    if (processed[0] == total) {
+                                        adapter.updateData(tempList);
+                                    }
+                                });
                     }
                 })
                 .addOnFailureListener(e ->
